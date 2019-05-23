@@ -1,9 +1,14 @@
 import tkinter as tk
-import pygame as pg
+try:
+    import pygame as pg
+except ImportError:
+    self.audio = None
+else:
+    self.audio = {'m': True, 'e': True}
 import sys
 import random
 
-### Stopped Let's code: Tetris episode 11 by TigerhawkT3 at 01:27:06
+### Stopped Let's code: Tetris episode 12 by TigerhawkT3 at 29:12
 
 
 class Shape:
@@ -18,6 +23,18 @@ class Shape:
 
 class Tetris:
     def __init__(self, parent):
+        if self.audio:
+            pg.mixer.init(buffer=512)
+            try:
+                self.sounds = {name: pg.mixer.Sound(name) for name in ('music.ogg',
+                                                                       'settle.ogg',
+                                                                       'clear.ogg',
+                                                                       'lose.ogg')}
+            except pygame.error:
+                self.audio = None
+            else:
+                for char in 'mMeE':
+                    self.parent.bind(char, self.toggle_audio)
         self.debug = 'debug' in sys.argv[1:]
         parent.title('Pytris')
         self.parent = parent
@@ -57,19 +74,20 @@ class Tetris:
                         'O': '#DB7093',
                         'I': '#BA55D3',
                         'T': '#40E0D0'}
-        self.parent.bind('<Down>', self.shift)
-        self.parent.bind('<Left>', self.shift)
-        self.parent.bind('<Right>', self.shift)
+
+        for key in ('<Down>', '<Left>', '<Right>'):
+            self.parent.bind(key, self.shift)
+
         self.parent.bind('<Up>', self.rotate)
-        self.parent.bind('a', self.snap)
-        self.parent.bind('A', self.snap)
-        self.parent.bind('d', self.snap)
-        self.parent.bind('D', self.snap)
-        self.parent.bind('s', self.snap)
-        self.parent.bind('S', self.snap)
+
+        for key in ('a', 'A', 'd', 'D', 's', 'S'):
+            self.parent.bind(key, self.snap)
+
         self.parent.bind('<Escape>', self.pause)
-        self.parent.bind('<Control-n>', self.draw_board)
-        self.parent.bind('<Control-N>', self.draw_board)
+
+        for key in ('<Control-n>', '<Control-N>'):
+            self.parent.bind(key, self.draw_board)
+
         self.canvas = None
         self.preview_canvas = None
         self.ticking = None
@@ -171,6 +189,17 @@ class Tetris:
         self.preview()
         self.spawning = self.parent.after(self.tickrate, self.spawn)
         self.ticking = self.parent.after(self.tickrate*2, self.tick)
+
+    def toggle_audio(self, event=None):
+        if not event:
+            return
+        key = event.keysym.lower()
+        self.audio[key] = not self.audio[key]
+        if key == 'm':
+            if not self.audio['m']:
+                self.sounds['music.ogg'].stop()
+            else:
+                self.sounds['music.ogg'].play(loops=-1)
 
     def pause(self, event=None):
         if self.piece_is_active and not self.paused:
