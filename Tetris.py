@@ -27,6 +27,8 @@ class Tetris:
         self.width = 200
         self.height = 480
         self.square_width = self.width//10
+        self.max_speed_score = 5000
+        self.speed_factor = 250
         self.shapes = {'S':[['*', ''],
                             ['*', '*'],
                             ['', '*']],
@@ -285,7 +287,8 @@ class Tetris:
             self.high_score = max(self.score, self.high_score)
             self.score_var.set(f"Score:\n{self.score}")
             self.high_score_var.set(f"High Score:\n{self.high_score}")
-
+            if self.score < self.max_speed_score:
+                self.tickrate = 1000 // (self.score//self.speed_factor + 1)
         if any(any(row) for row in self.board[:4]):
             self.lose()
             return
@@ -356,6 +359,7 @@ class Tetris:
     def lose(self):
         self.piece_is_active = False
         self.parent.after_cancel(self.ticking)
+        self.parent.after_cancel(self.spawning)
         self.clear_iter(range(len(self.board)))
 
 
