@@ -1,10 +1,10 @@
 import tkinter as tk
 try:
-    import pygame as pg
+    import pygame
 except ImportError:
-    self.audio = None
+    audio = None
 else:
-    self.audio = {'m': True, 'e': True}
+    audio = True
 import sys
 import random
 
@@ -23,21 +23,25 @@ class Shape:
 
 class Tetris:
     def __init__(self, parent):
-        if self.audio:
-            pg.mixer.init(buffer=512)
+        self.debug = 'debug' in sys.argv[1:]
+        self.random = 'random' in sys.argv[1:]
+        parent.title('Pythris')
+        self.parent = parent
+        if audio:
+            pygame.mixer.init(buffer=512)
             try:
-                self.sounds = {name: pg.mixer.Sound(name) for name in ('music.ogg',
-                                                                       'settle.ogg',
-                                                                       'clear.ogg',
-                                                                       'lose.ogg')}
-            except pygame.error:
+                self.sounds = {name: pygame.mixer.Sound(name) for name in ('music.ogg',
+                                                                           'settle.ogg',
+                                                                           'clear.ogg',
+                                                                           'lose.ogg')}
+            except pygame.error as err:
                 self.audio = None
+                print(err)
             else:
+                self.audio = {'m': True, 'e': True}
                 for char in 'mMeE':
                     self.parent.bind(char, self.toggle_audio)
-        self.debug = 'debug' in sys.argv[1:]
-        parent.title('Pytris')
-        self.parent = parent
+                self.sounds['music.ogg'].play(loops=-1)
         self.board_width = 10
         self.board_height = 24
         self.high_score = 0
@@ -186,6 +190,7 @@ class Tetris:
         self.score = 0
         self.piece_is_active = False
         self.paused = False
+        self.bag = []
         self.preview()
         self.spawning = self.parent.after(self.tickrate, self.spawn)
         self.ticking = self.parent.after(self.tickrate*2, self.tick)
@@ -321,13 +326,21 @@ class Tetris:
         if any(any(row) for row in self.board[:4]):
             self.lose()
             return
-
+        if self.audio['e'] and not indices:
+            self.sounds['settle.ogg'].play()
         self.spawning = self.parent.after(self.tickrate, self.spawn)
 
 
     def preview(self):
         self.preview_canvas.delete(tk.ALL)
-        key = random.choice('IJLOSTZ')
+        if not self.bag:
+            if self.random:
+                self.bag.append(random.choice('IJLOSTZ'))
+            else:
+                self.bag = random.sample('IJLOSTZ', 7)
+
+        key = self.bag.pop()
+
         shape = rotate_array(self.shapes[key], random.choice((0, 90, 180, 270)))
         self.preview_piece = Shape(shape, key, [], 0, 0, [])
         width = len(shape[0])
@@ -387,6 +400,8 @@ class Tetris:
 
     def lose(self):
         self.piece_is_active = False
+        if self.audio['e']:
+            self.sounds['lose.ogg'].play()
         self.parent.after_cancel(self.ticking)
         self.parent.after_cancel(self.spawning)
         self.clear_iter(range(len(self.board)))
@@ -421,6 +436,8 @@ class Tetris:
 
 
     def clear(self, indices):
+        if self.audio['e']:
+            self.sounds['clear.ogg'].play()
         for idx in indices:
             self.board.pop(idx)
             self.board.insert(0, ['' for column in range(self.board_width)])
