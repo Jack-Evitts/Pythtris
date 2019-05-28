@@ -8,7 +8,8 @@ else:
 import sys
 import random
 
-### Stopped Let's code: Tetris episode 12 by TigerhawkT3 at 29:12
+### Stopped Let's code: Tetris episode 18 by TigerhawkT3 at 00:00
+### Use score_lines or high_score_lines to increase level and speed etc.
 
 
 class Shape:
@@ -22,12 +23,13 @@ class Shape:
 
 
 class Tetris:
-    def __init__(self, parent):
+    def __init__(self, parent, audio):
         self.debug = 'debug' in sys.argv[1:]
         self.random = 'random' in sys.argv[1:]
         parent.title('Pythris')
         self.parent = parent
-        if audio:
+        self.audio = audio
+        if self.audio:
             pygame.mixer.init(buffer=512)
             try:
                 self.sounds = {name: pygame.mixer.Sound(name) for name in ('music.ogg',
@@ -45,6 +47,7 @@ class Tetris:
         self.board_width = 10
         self.board_height = 24
         self.high_score = 0
+        self.high_score_lines = 0
         self.width = 200
         self.height = 480
         self.square_width = self.width//10
@@ -92,10 +95,14 @@ class Tetris:
         for key in ('<Control-n>', '<Control-N>'):
             self.parent.bind(key, self.draw_board)
 
+        for key in ('g', 'G'):
+            self.parent.bind(key, self.toggle_guides)
+
         self.canvas = None
         self.preview_canvas = None
         self.ticking = None
         self.spawning = None
+        self.guide_fill = ''
         self.score_var = tk.StringVar()
         self.score_label = tk.Label(ROOT,
                                     textvariable=self.score_var,
@@ -104,7 +111,7 @@ class Tetris:
                                     font=('Helvetica', 12))
         self.score_label.grid(row=2, column=1, sticky="S")
         self.high_score_var = tk.StringVar()
-        self.high_score_var.set('High Score:\n0')
+        self.high_score_var.set('High Score:\n0 (0)')
         self.high_score_label = tk.Label(ROOT,
                                          textvariable=self.high_score_var,
                                          width=25,
@@ -188,13 +195,21 @@ class Tetris:
         self.preview_canvas.grid(row=1, column=1)
         self.tickrate = 1000
         self.score = 0
+        self.score_lines = 0
         self.piece_is_active = False
         self.paused = False
         self.bag = []
         self.preview()
+        self.guides = [self.canvas.create_line(0, 0, 0, self.height),
+                       self.canvas.create_line(0, 0, self.width, self.height)]
         self.spawning = self.parent.after(self.tickrate, self.spawn)
         self.ticking = self.parent.after(self.tickrate*2, self.tick)
 
+    def toggle_guides(self, event=None):
+        self.guide_fill = '' if self.guide_fill else 'black'
+        self.canvas.itemconfig(self.guides[0], fill=self.guide_fill)
+        self.canvas.itemconfig(self.guides[1], fill=self.guide_fill)
+    
     def toggle_audio(self, event=None):
         if not event:
             return
@@ -252,15 +267,14 @@ class Tetris:
         self.active_piece.row = r
         self.active_piece.column = c
         self.active_piece.shape = shape
+        self.move_guides(c, (c+w))
         if self.debug:
             self.print_board()
         return True
 
 
     def check_and_move(self, shape, r, c, l, w):
-        if self.check(shape, r, c, l, w):
-            self.move(shape, r, c, l, w)
-            return True
+        return self.check(shape, r, c, l, w) and self.move(shape, r, c, l, w)
 
 
     def rotate(self, event=None):
@@ -307,7 +321,8 @@ class Tetris:
         for row in self.board:
             row[:] = ['x' if cell == '*' else cell for cell in row]
 
-        self.print_board()
+        if self.debug:
+            self.print_board()
 
         for (x1, y1, x2, y2), id in zip(self.active_piece.coords, self.active_piece.piece):
             self.field[y1//self.square_width][x1//self.square_width] = id
@@ -315,12 +330,14 @@ class Tetris:
         indices = [idx for idx, row in enumerate(self.board) if all(row)]
         if indices:
             self.score += (40, 100, 300, 1200)[len(indices) - 1]
+            self.score_lines += len(indices)
             self.clear(indices)
             if all(not cell for row in self.board for cell in row):
                 self.score += 2000
             self.high_score = max(self.score, self.high_score)
-            self.score_var.set(f"Score:\n{self.score}")
-            self.high_score_var.set(f"High Score:\n{self.high_score}")
+            self.high_score_lines = max(self.score_lines, self.high_score_lines)
+            self.score_var.set(f"Score:\n{self.score} ({self.score_lines})")
+            self.high_score_var.set(f"High Score:\n{self.high_score} ({self.high_score_lines})")
             if self.score < self.max_speed_score:
                 self.tickrate = 1000 // (self.score//self.speed_factor + 1)
         if any(any(row) for row in self.board[:4]):
@@ -328,7 +345,7 @@ class Tetris:
             return
         if self.audio['e'] and not indices:
             self.sounds['settle.ogg'].play()
-        self.spawning = self.parent.after(self.tickrate, self.spawn)
+        self.spawning = self.parent.after(500 if indices and self.tickrate < 500 else self.tickrate, self.spawn)
 
 
     def preview(self):
@@ -372,6 +389,10 @@ class Tetris:
         if len(shape) < len(shape[0]):
             self.preview_piece.rotation_index += 1
 
+    def move_guides(self, left, right):
+        self.canvas.coords(self.guides[0], left*self.square_width, 0, left*self.square_width, self.height)
+        self.canvas.coords(self.guides[1], right*self.square_width, 0, right*self.square_width, self.height)
+
 
     def spawn(self):
         self.piece_is_active = True
@@ -394,6 +415,7 @@ class Tetris:
                     self.active_piece.piece.append(self.canvas.create_rectangle(self.active_piece.coords[-1],
                                                                                 fill=self.colours[self.active_piece.key],
                                                                                 width=2))
+        self.move_guides(start, (start+width))
         if self.debug:
             self.print_board()
 
@@ -511,5 +533,5 @@ def rotate_array(array, angle, wide=False):
 
 
 ROOT = tk.Tk()
-TETRIS = Tetris(ROOT)
+TETRIS = Tetris(ROOT, audio)
 ROOT.mainloop()
