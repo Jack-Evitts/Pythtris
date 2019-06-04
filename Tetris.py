@@ -7,8 +7,9 @@ else:
     audio = True
 import sys
 import random
+import time
 
-### Stopped Let's code: Tetris episode 18 by TigerhawkT3 at 00:00
+### Stopped Let's code: Tetris episode 18 by TigerhawkT3 at 21:51
 ### Use score_lines or high_score_lines to increase level and speed etc.
 
 
@@ -17,15 +18,43 @@ class Shape:
         self.shape = shape
         self.key = key
         self.piece = piece
-        self.row = row
+        self._row = row
+        self._rotation_index = 0
         self.column = column
         self.coords = coords
+        self.hover_time = self.spin_time = time.perf_counter()
+    @property
+    def row(self):
+        return self._row
+    @row.setter
+    def row(self, x):
+        if x != self._row:
+            self._row = x
+            self.hover_time = time.perf_counter()
+    @property
+    def rotation_index(self):
+        return self._rotation_index
+    @rotation_index.setter
+    def rotation_index(self, x):
+        if x != self._rotation_index:
+            self._rotation_index = x
+            self.spin_time = time.perf_counter()
+    @property
+    def hover(self):
+        return time.perf_counter() - self.hover_time < 0.5
+    @property
+    def spin(self):
+        return time.perf_counter() - self.spin_time < 0.5
+
+
 
 
 class Tetris:
     def __init__(self, parent, audio):
         self.debug = 'debug' in sys.argv[1:]
         self.random = 'random' in sys.argv[1:]
+        self.hover = 'nohover' not in sys.argv[1:]
+        self.spin = 'spin' in sys.argv[1:]
         parent.title('Pythris')
         self.parent = parent
         self.audio = audio
@@ -281,6 +310,7 @@ class Tetris:
         if not self.active_piece:
             return
         if len(self.active_piece.shape) == len(self.active_piece.shape[0]):
+            self.active_piece.rotation_index = self.active_piece.rotation_index
             return
         r = self.active_piece.row
         c = self.active_piece.column
