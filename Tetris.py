@@ -9,7 +9,7 @@ import sys
 import random
 import time
 
-### Stopped Let's code: Tetris episode 18 by TigerhawkT3 at 21:51
+### Stopped Let's code: Tetris episode 19 by TigerhawkT3 at 00:00:00
 ### Use score_lines or high_score_lines to increase level and speed etc.
 
 
@@ -36,9 +36,8 @@ class Shape:
         return self._rotation_index
     @rotation_index.setter
     def rotation_index(self, x):
-        if x != self._rotation_index:
-            self._rotation_index = x
-            self.spin_time = time.perf_counter()
+        self._rotation_index = x
+        self.spin_time = time.perf_counter()
     @property
     def hover(self):
         return time.perf_counter() - self.hover_time < 0.5
@@ -157,7 +156,7 @@ class Tetris:
 
 
     def tick(self):
-        if self.piece_is_active:
+        if self.piece_is_active and not (self.spin and self.active_piece.spin):
             self.shift()
         self.ticking = self.parent.after(self.tickrate, self.tick)
 
@@ -184,7 +183,7 @@ class Tetris:
 
         success = self.check_and_move(self.active_piece.shape, rt, ct, l, w)
 
-        if direction in 'Down' and not success:
+        if direction in 'Down' and not success and not (self.hover and self.active_piece.hover):
             self.settle()
 
 
