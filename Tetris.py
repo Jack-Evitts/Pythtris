@@ -9,7 +9,7 @@ import sys
 import random
 import time
 
-### Stopped Let's code: Tetris episode 19 by TigerhawkT3 at 00:00:00
+### Stopped Let's code: Tetris episode 19 by TigerhawkT3 at 00:58:42
 ### Use score_lines or high_score_lines to increase level and speed etc.
 
 
@@ -19,6 +19,7 @@ class Shape:
         self.key = key
         self.piece = piece
         self._row = row
+        self.kicked = False
         self._rotation_index = 0
         self.column = column
         self.coords = coords
@@ -28,7 +29,7 @@ class Shape:
         return self._row
     @row.setter
     def row(self, x):
-        if x != self._row:
+        if x != self._row and not self.kicked:
             self._row = x
             self.hover_time = time.perf_counter()
     @property
@@ -54,6 +55,7 @@ class Tetris:
         self.random = 'random' in sys.argv[1:]
         self.hover = 'nohover' not in sys.argv[1:]
         self.spin = 'spin' in sys.argv[1:]
+        self.kick = 'kick' in sys.argv[1:]
         parent.title('Pythris')
         self.parent = parent
         self.audio = audio
@@ -337,11 +339,22 @@ class Tetris:
         rt += y_correction
         ct += x_correction
 
-        success = self.check_and_move(shape, rt, ct, l, w)
-        if not success:
+        if self.check_and_move(shape, rt, ct, l, w):
+            self.active_piece.rotation_index = rotation_index
+            if self.active_piece.kicked:
+                self.snap()
             return
 
-        self.active_piece.rotation_index = rotation_index
+        if self.kick:
+            for a, b in zip((0, 0, -1, 0, 0, -2, -1, -1, -1, -1, -2, -2, -2, -2),
+                            (-1, 1, 0, -2, 2, 0, -1, 1, -2, 2, -1, 1, -2, 2)):
+                    if self.check_and_move(shape, rt+a, ct+b, l, w):
+                        self.active_piece.rotation_index = rotation_index
+                        if not self.active_piece.kicked:
+                            self.active_piece.kicked = a
+                        if self.active_piece.kicked and not a:
+                            self.snap()
+                        return
 
 
     def settle(self):
@@ -469,7 +482,7 @@ class Tetris:
         l = len(self.active_piece.shape)
         w = len(self.active_piece.shape[0])
 
-        direction = event.keysym
+        direction = event.keysym if event is not None else 's'
 
         while 1:
             if self.check(self.active_piece.shape,
